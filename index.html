@@ -1,0 +1,546 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="星火之路——纪念中国工农红军长征胜利九十周年沉浸式数字叙事。图文影像与原创配乐交织，重走二万五千里。">
+<title>星火之路 · 纪念长征胜利90周年</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a0e14'/%3E%3Cpath d='M32 8 L38 26 L56 32 L38 38 L32 56 L26 38 L8 32 L26 26 Z' fill='%23ffc46b'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;900&family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=43"></head>
+<body>
+
+<canvas id="scene-canvas" aria-hidden="true"></canvas>
+<canvas id="fx-canvas" aria-hidden="true"></canvas>
+<div id="vignette" aria-hidden="true"></div>
+<div id="ink-veil" aria-hidden="true"></div>
+<div id="chapter-veil" aria-hidden="true">
+  <div class="cv-inner">
+    <span class="cv-kicker"></span>
+    <span class="cv-place"></span>
+    <span class="cv-sub"></span>
+    <div class="cv-route">
+      <span class="cvr-from">于都</span>
+      <div class="cvr-track"><i class="cvr-fill"></i><i class="cvr-dot"></i></div>
+      <span class="cvr-to"></span>
+    </div>
+    <span class="cv-li"></span>
+  </div>
+</div>
+
+<!-- 顶部 HUD -->
+<div id="hud" aria-hidden="false">
+  <div id="hud-left">
+    <div id="hud-title">星火之路</div>
+    <div id="hud-sparks"></div>
+  </div>
+  <div id="hud-dots"></div>
+  <div id="hud-mile">
+    <div id="mile-text"><span id="mile-now">0</span><em>里</em></div>
+    <div id="mile-bar"><i id="mile-fill"></i></div>
+    <div id="mile-total">全程 25,000 里</div>
+  </div>
+</div>
+
+<!-- 配乐开关 -->
+<div id="audio-btn" role="button" tabindex="0" title="行军配乐 开/关" aria-label="切换配乐">
+  <svg class="ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+  <svg class="ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>
+  <span id="audio-tip">原创配乐</span>
+</div>
+
+<!-- 自动行军 -->
+<div id="auto-btn" role="button" tabindex="0" title="自动行军 开/关" aria-label="切换自动行军">
+  <svg class="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="10 8.5 16 12 10 15.5" fill="currentColor" stroke="none"/></svg>
+  <svg class="ic-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="9.5" y1="9" x2="9.5" y2="15"/><line x1="14.5" y1="9" x2="14.5" y2="15"/></svg>
+  <span>自动行军</span>
+</div>
+
+<!-- 3D 节点标注层 -->
+<div id="labels" aria-hidden="true"></div>
+
+<main id="journey">
+
+  <!-- 0 封面 -->
+  <section class="panel hero" id="ch0" data-ch="0">
+    <div class="hero-inner">
+      <p class="hero-kicker">1934.10 —— 1936.10</p>
+      <h1 class="hero-title"><span>星</span><span>火</span><span>之</span><span>路</span></h1>
+      <p class="hero-sub">纪念中国工农红军长征胜利九十周年</p>
+      <div class="hero-rule"><i></i><b></b><i></i></div>
+      <p class="hero-desc">两年，二万五千里，一场改变中国命运的远征。<br>以图卷、影像与原创配乐，重走这条星火之路。</p>
+      <div class="hero-cta" id="start-btn" role="button" tabindex="0">开 始 行 军</div>
+      <p class="hero-hint">建议开启声音 · 滚轮 / 方向键 / 轻扫，皆可随军前行</p>
+    </div>
+
+    <!-- 征程总图：自由选择去处 -->
+    <div class="route-wrap" id="route-sec">
+      <div class="route-head">
+        <span class="ch-no">征程总图</span>
+        <h2 class="route-title">二万五千里 · 行军路线</h2>
+        <p class="route-sub">点击任一星标，直达那段征程 —— 或随大军逐站前行</p>
+      </div>
+      <div class="route-map" id="route-map"></div>
+      <div class="route-legend">
+        <span><i class="lg lg-node"></i>可前往的地点</span>
+        <span><i class="lg lg-done"></i>已经过</span>
+        <span><i class="lg lg-cur"></i>当前所在</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1 于都 -->
+  <section class="panel" id="ch1" data-ch="1">
+    <div class="story" data-wm="发">
+      <div class="story-head">
+        <span class="ch-no">第一章</span><span class="ch-date">1934年10月17日夜 · 江西于都</span>
+      </div>
+      <h2 class="ch-title">出 发</h2>
+      <figure class="ch-visual reveal" data-hs="1">
+        <div class="ch-stage">
+          <img src="assets/img/ch1_yudu.jpg" alt="夜渡于都河——红军火把队伍走过浮桥" loading="lazy">
+        </div>
+        <figcaption>夜渡于都河 · AI 生成示意图 · 图中有星标故事</figcaption>
+      </figure>
+      <p class="ch-lead">中央红军八万六千余人，从于都河畔的浮桥上悄悄走过，踏上战略转移之路。桥板拆了又搭，浮桥架了又收——于都人守着这个秘密，直到大军西去。</p>
+      <p class="ch-detail">那几夜，于都河上架起多座浮桥。为了不暴露行踪，所有灯火在黎明前熄灭；为了架桥，于都人拆下了自家的门板、床板，甚至寿材。周恩来在河畔感慨："于都人民真好，苏区人民真亲。"</p>
+      <div class="ch-verse reveal"><i class="seal">星火</i><span class="v-text">红军不怕远征难，万水千山只等闲。</span><span class="v-src">——毛泽东《七律·长征》</span></div>
+      <div class="metric-line"><b class="num" data-count="86000">0</b><span class="unit">余人</span><span class="cap">渡河出征</span></div>
+      <figure class="ch-video reveal">
+        <video src="assets/video/v1_yudu.mp4" muted loop playsinline preload="none" poster="assets/img/ch1_yudu.jpg"></video>
+        <figcaption>夜渡</figcaption>
+      </figure>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 无声的送别</b>
+        <p>出征前的于都河两岸，乡亲们送来炒米、草鞋和斗笠。送行的山歌压得很低很低——因为这是不能说出口的告别。无数于都子弟由此上桥，从此再未回乡。</p>
+      </aside>
+      <div class="family-letter" role="button" tabindex="0" aria-label="展开一封没有寄出的于都家书">
+        <i class="fl-seal">家书</i>
+        <span class="fl-text">展开一封没有寄出的于都家书</span>
+        <span class="fl-arrow">✉</span>
+      </div>
+      <div class="ix-row reveal" id="yudu-ix">
+        <div class="ix-btn big" id="torch-btn" role="button" tabindex="0">点 起 火 把</div>
+        <span class="ix-status" id="torch-status">夜色里，于都河上还没有一丝光</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 湘江 -->
+  <section class="panel" id="ch2" data-ch="2">
+    <div class="story" data-wm="血">
+      <div class="story-head">
+        <span class="ch-no">第二章</span><span class="ch-date">1934年11月27日—12月1日 · 湘江</span>
+      </div>
+      <h2 class="ch-title">血 战 湘 江</h2>
+      <figure class="ch-visual reveal" data-hs="2">
+        <div class="ch-stage">
+          <img src="assets/img/ch2_xiangjiang.jpg" alt="血战湘江——战后江水与残旗" loading="lazy">
+        </div>
+        <figcaption>血战湘江</figcaption>
+      </figure>
+      <p class="ch-lead">五昼夜，长征中最惨烈的一役。红军以血肉之躯撕开第四道封锁线，中央红军由出发时的八万六千余人，锐减至三万余人。</p>
+      <p class="ch-detail">担任全军后卫的红三十四师战至弹尽粮绝。师长陈树湘腹部中弹被俘，他趁敌不备，从伤口处绞断肠子，壮烈牺牲，年仅二十九岁——"为苏维埃新中国流尽最后一滴血。"</p>
+      <div class="metric-line">
+        <b class="num dim" data-count="86000">0</b><span class="unit dim">人</span>
+        <i class="arrow-dim">→</i>
+        <b class="num" data-count="30000">0</b><span class="unit">余人</span>
+      </div>
+      <div class="burden-ix" id="burden-ix">
+        <div class="bi-row1">
+          <b class="bi-tag">湘江突围 · 五里浮桥</b>
+          <span class="bi-weight" id="bi-weight">负重 12 斤</span>
+        </div>
+        <p class="bi-q">按住不放（或连点），背起行囊过江——别松手，追兵就在身后。</p>
+        <div class="bi-pack" id="bi-pack" aria-hidden="true">
+          <svg viewBox="0 0 48 56" fill="none" stroke="currentColor">
+            <path d="M13 18 C13 10 18 6 24 6 C30 6 35 10 35 18" stroke-width="2.5" stroke-linecap="round"/>
+            <rect x="8" y="16" width="32" height="34" rx="7" fill="rgba(232,132,45,.12)" stroke-width="2"/>
+            <path d="M8 28 h32" stroke-width="1.5" opacity=".5"/>
+            <rect x="18" y="34" width="12" height="10" rx="2" fill="rgba(255,196,107,.2)" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="bi-hold" id="bi-hold" role="button" tabindex="0" aria-label="按住以负重前行">按住 · 负重前行</div>
+        <div class="bi-progress"><i id="bi-fill"></i></div>
+        <p class="bi-note" id="bi-note">五里浮桥，走完就是西岸。</p>
+        <div class="roster" id="roster">
+          <b class="rs-title">红三连 · 战士名册 <i>（据史实情景创作的意象名册）</i></b>
+          <div class="rs-names" id="rs-names"></div>
+          <p class="rs-hint" id="rs-hint" hidden></p>
+        </div>
+        <p class="bi-result" id="bi-result" hidden></p>
+      </div>
+      <div class="jx-ticker reveal" id="jx-tick">
+        <b id="jx-count">0</b>
+        <span class="jx-text">名红军将士，在你停留本章的 <em id="jx-sec">0</em> 秒里倒下<br><i>按湘江五昼夜折损五万余人折算 · 谨以此计数，致哀英烈</i></span>
+      </div>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 绝命后卫师</b>
+        <p>红三十四师六千余名闽西子弟，为掩护中央机关和红军主力抢渡湘江，几乎全师覆没。湘江之战后，当地百姓多年流传——</p>
+      </aside>
+      <p class="ch-quote">"三年不饮湘江水，十年不食湘江鱼。"<br><em>——战后，桂北百姓口口相传</em></p>
+      <div class="ix-row" id="lantern-ix">
+        <div class="ix-btn big" id="lantern-btn" role="button" tabindex="0">为英烈放一盏河灯</div>
+        <span class="ix-status" id="lantern-status">夜色里的湘江，还没有一盏灯</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 遵义 -->
+  <section class="panel" id="ch3" data-ch="3">
+    <div class="story" data-wm="转">
+      <div class="story-head">
+        <span class="ch-no">第三章</span><span class="ch-date">1935年1月15日—17日 · 遵义</span>
+      </div>
+      <h2 class="ch-title">生 死 转 折</h2>
+      <figure class="ch-visual reveal" data-hs="3">
+        <div class="ch-stage">
+          <img src="assets/img/ch3_zunyi.jpg" alt="遵义灯火——小楼夜色与马灯" loading="lazy">
+        </div>
+        <figcaption>遵义灯火</figcaption>
+      </figure>
+      <p class="ch-lead">一场只开了三天的会议，在最危急的历史关头，挽救了党、挽救了红军、挽救了中国革命。</p>
+      <p class="ch-detail">会议批评了博古、李德在军事指挥上的错误，增选毛泽东为中央政治局常委。此后，中央红军在毛泽东等指挥下，四渡赤水、巧渡金沙，彻底扭转被动局面。</p>
+      <div class="ch-verse reveal"><i class="seal">星火</i><span class="v-text">雄关漫道真如铁，而今迈步从头越。</span><span class="v-src">——毛泽东《忆秦娥·娄山关》</span></div>
+      <div class="metric-line"><b class="num" data-count="3">0</b><span class="unit">天</span><span class="cap">遵义会议</span></div>
+      <figure class="ch-video reveal">
+        <video src="assets/video/v4_zunyi.mp4" muted loop playsinline preload="none" poster="assets/img/ch3_zunyi.jpg"></video>
+        <figcaption>遵义灯火</figcaption>
+      </figure>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 娄山关大捷</b>
+        <p>遵义会议后，红军二渡赤水回师黔北，再克娄山关、重占遵义城，取得长征以来首次重大胜利。硝烟未散，毛泽东在马蹄声里写下《忆秦娥·娄山关》，"从头越，苍山如海，残阳如血。"</p>
+      </aside>
+      <div class="route-ix" id="route-ix">
+        <div class="bi-row1">
+          <b class="bi-tag">遵义会议 · 路线表决</b>
+          <span class="bi-weight">你的一票</span>
+        </div>
+        <p class="bi-q">会上陈列了三种主张。把错误的两条，亲手划掉。</p>
+        <div class="rt-cards">
+          <div class="rt-card bad" role="button" tabindex="0" aria-label="阵地御敌"><b>阵地御敌</b><span>与敌人硬拼，寸土必争</span></div>
+          <div class="rt-card bad" role="button" tabindex="0" aria-label="大搬家式转移"><b>大搬家式转移</b><span>坛坛罐罐都带上，行军迟缓</span></div>
+          <div class="rt-card good"><b>灵活机动的运动战</b><span>打得赢就打，打不赢就走</span></div>
+        </div>
+        <p class="bi-note" id="rt-note"></p>
+      </div>
+      <div class="quiz-block" data-ans="1" data-hint="会议最重要的改变，不是地点，也不是战果，而是'自己的问题，自己解决'。"
+        data-exp="因为党在极端危急的历史关头，第一次独立自主地解决了自己的路线、方针和领导问题。从此，中国革命有了自己的主心骨——实事求是、独立自主，从遵义重新出发。">
+        <b class="qz-tag">思考一下</b>
+        <p class="qz-q">为什么说遵义会议是"生死攸关的转折点"？</p>
+        <div class="qz-opts">
+          <button class="qz-opt" data-k="0">因为会址选在了一栋僻静安全的小楼里</button>
+          <button class="qz-opt" data-k="1">因为党第一次独立自主地解决了自己的路线与领导问题</button>
+          <button class="qz-opt" data-k="2">因为会议之后红军立刻打了一场大胜仗</button>
+        </div>
+        <p class="qz-exp" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 四渡赤水 -->
+  <section class="panel" id="ch4" data-ch="4">
+    <div class="story" data-wm="渡">
+      <div class="story-head">
+        <span class="ch-no">第四章</span><span class="ch-date">1935年1月29日—3月22日 · 赤水河</span>
+      </div>
+      <h2 class="ch-title">神 来 之 笔</h2>
+      <figure class="ch-visual reveal" data-hs="4">
+        <div class="ch-stage">
+          <img src="assets/img/ch4_chishui.jpg" alt="四渡赤水——行军队伍渡过赤水河谷" loading="lazy">
+        </div>
+        <figcaption>四渡赤水</figcaption>
+      </figure>
+      <p class="ch-lead">三个月内，三万红军四次渡过赤水河，牵着四十万追兵在川黔滇边界反复兜圈，跳出重围、掌握主动。</p>
+      <p class="ch-detail">一渡西进、二渡回师、三渡再入、四渡南下——红军忽东忽西、忽南忽北，把数十万追兵拖得疲于奔命，随后虚指贵阳、威逼昆明，五月初巧渡金沙江，彻底跳出包围圈。</p>
+      <div class="duo-metrics">
+        <div class="metric-line"><b class="num" data-count="3">0</b><span class="unit">万 红军</span></div>
+        <div class="vs">VS</div>
+        <div class="metric-line"><b class="num dim" data-count="40">0</b><span class="unit dim">万 追兵</span></div>
+      </div>
+      <svg id="sidu-svg" viewBox="0 0 320 120" aria-label="四渡赤水示意">
+        <text class="riv-name" x="16" y="24">赤水河</text>
+        <path class="river" d="M300,10 C250,30 240,40 200,46 C150,54 150,66 110,74 C70,84 60,96 20,110"/>
+        <g class="cross" data-i="0"><path class="c-line" d="M120,18 C110,34 96,44 86,58"/><polygon class="c-head" points="82,66 92,54 96,64"/><text class="c-tag" x="128" y="30">一渡·土城</text></g>
+        <g class="cross" data-i="1"><path class="c-line" d="M78,64 C88,52 100,42 110,30"/><polygon class="c-head" points="114,24 102,26 108,36"/><text class="c-tag" x="30" y="52">二渡·太平渡</text></g>
+        <g class="cross" data-i="2"><path class="c-line" d="M170,36 C160,52 148,62 138,76"/><polygon class="c-head" points="134,84 144,72 148,82"/><text class="c-tag" x="176" y="48">三渡·茅台</text></g>
+        <g class="cross" data-i="3"><path class="c-line" d="M132,82 C142,68 154,58 164,44"/><polygon class="c-head" points="168,38 156,40 162,50"/><text class="c-tag" x="230" y="86">四渡·二郎滩</text></g>
+      </svg>
+      <div class="ix-row reveal" id="sidu-ctl">
+        <button class="ix-btn" data-x="1">一渡</button>
+        <button class="ix-btn" data-x="2">二渡</button>
+        <button class="ix-btn" data-x="3">三渡</button>
+        <button class="ix-btn" data-x="4">四渡</button>
+        <span class="ix-status" id="sidu-status">亲手点击，逐渡重演这场神来之笔</span>
+      </div>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 得意之笔</b>
+        <p>多年后，蒙哥马利访华，盛赞解放战争三大战役的指挥艺术。毛泽东摆摆手说：四渡赤水，才是我的得意之笔。</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 5 泸定桥 -->
+  <section class="panel" id="ch5" data-ch="5">
+    <div class="story" data-wm="夺">
+      <div class="story-head">
+        <span class="ch-no">第五章</span><span class="ch-date">1935年5月29日 · 大渡河泸定桥</span>
+      </div>
+      <h2 class="ch-title">飞 夺 泸 定 桥</h2>
+      <figure class="ch-visual reveal" data-hs="5">
+        <div class="ch-stage">
+          <img src="assets/img/ch5_luding.jpg" alt="飞夺泸定桥——铁索横贯大渡河峡谷" loading="lazy">
+        </div>
+        <figcaption>铁索寒</figcaption>
+      </figure>
+      <p class="ch-lead">红四团一昼夜急行军二百四十里，赶到泸定桥头。二十二名勇士攀着十三根光溜溜的铁索，冒着弹雨，夺下了这座桥。</p>
+      <p class="ch-detail">接到命令时，红四团距离泸定桥还有二百四十里。大雨滂沱、山路泥泞，他们昼夜兼程，终于在拂晓赶到桥头——对岸守军纵火焚桥，铁索在火光中发烫，桥下是大渡河的惊涛。</p>
+      <div class="ch-verse reveal"><i class="seal">星火</i><span class="v-text">金沙水拍云崖暖，大渡桥横铁索寒。</span><span class="v-src">——毛泽东《七律·长征》</span></div>
+      <div class="trio-metrics">
+        <div class="metric-line"><b class="num" data-count="240">0</b><span class="unit">里/昼夜</span></div>
+        <div class="metric-line"><b class="num" data-count="22">0</b><span class="unit">勇士</span></div>
+        <div class="metric-line"><b class="num" data-count="13">0</b><span class="unit">根铁索</span></div>
+      </div>
+      <div class="ix-hold reveal" id="luding-hold">
+        <div class="ix-hold-btn" id="hold-btn" role="button" tabindex="0" aria-label="按住以攀索前进">按住 · 攀索前进</div>
+        <div class="ix-progress"><i id="hold-fill"></i></div>
+        <span class="ix-status" id="hold-status">二十二名勇士，正等你的手劲</span>
+      </div>
+      <figure class="ch-video reveal">
+        <video src="assets/video/v5_luding.mp4" muted loop playsinline preload="none" poster="assets/img/ch5_luding.jpg"></video>
+        <figcaption>铁索寒</figcaption>
+      </figure>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 无名的勇士</b>
+        <p>突击队由二连连长廖大珠带领，攀着铁索冲向对岸。他们中的大多数人，连名字都没有留下——泸定桥记住了他们所有人的体温。</p>
+      </aside>
+      <div class="quiz-block" data-ans="1" data-hint="想一想：红军最缺的是什么？不是勇气，是时间。"
+        data-exp="大渡河天险，七十年前石达开的全军就覆没在这里。追兵只差一昼夜——等船，就是等死。二十二名勇士用命夺下的不只是一座桥，是全军的时间。">
+        <b class="qz-tag">思考一下</b>
+        <p class="qz-q">红军为什么必须夺下泸定桥，等船渡河不行吗？</p>
+        <div class="qz-opts">
+          <button class="qz-opt" data-k="0">因为泸定桥是两岸之间唯一的通道</button>
+          <button class="qz-opt" data-k="1">因为追兵只差一昼夜——夺桥，是为全军打开生路</button>
+          <button class="qz-opt" data-k="2">因为守军已经把所有的渡船烧光了</button>
+        </div>
+        <p class="qz-exp" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 雪山草地 -->
+  <section class="panel" id="ch6" data-ch="6">
+    <div class="story" data-wm="雪">
+      <div class="story-head">
+        <span class="ch-no">第六章</span><span class="ch-date">1935年6月—8月 · 夹金山 · 松潘草地</span>
+      </div>
+      <h2 class="ch-title">雪 山 草 地</h2>
+      <figure class="ch-visual reveal" data-hs="6">
+        <div class="ch-stage">
+          <img src="assets/img/ch6_xueshan.jpg" alt="翻越雪山——风雪垭口行军剪影" loading="lazy">
+        </div>
+        <figcaption>翻越雪山</figcaption>
+      </figure>
+      <p class="ch-lead">翻越一座座海拔四千米以上的大雪山，再踏入松潘草地——纵横五百余里的水草地吞噬了无数草鞋。缺氧、严寒、饥饿，每前进一步，都可能有人永远留下。</p>
+      <p class="ch-detail">雪线之上空气稀薄，一步一喘；草皮之下是黑色的泥沼，一脚踩空就再难起身。粮食断绝，战士们煮皮带、挖草根，把生的希望留给战友。</p>
+      <figure class="ch-video reveal">
+        <video src="assets/video/v2_snow.mp4" muted loop playsinline preload="none" poster="assets/img/ch6_xueshan.jpg"></video>
+        <figcaption>风雪行军</figcaption>
+      </figure>
+      <div class="ch-verse reveal"><i class="seal">星火</i><span class="v-text">更喜岷山千里雪，三军过后尽开颜。</span><span class="v-src">——毛泽东《七律·长征》</span></div>
+      <div class="duo-metrics">
+        <div class="metric-line"><b class="num" data-count="4000" data-suffix="+">0</b><span class="unit">米 雪山海拔</span></div>
+        <div class="metric-line"><b class="num" data-count="500" data-suffix="+">0</b><span class="unit">里 水草地</span></div>
+      </div>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 金色的鱼钩</b>
+        <p>过草地时，炊事班长用缝衣针弯成鱼钩，钓鱼给三个生病的小战士吃，自己却嚼草根、吞下他们剩下的鱼骨。老班长倒下时，那枚长满红锈的鱼钩，闪着金色的光芒。（据课文《金色的鱼钩》）</p>
+      </aside>
+      <div class="choice-block" id="coat-ix">
+        <b class="co-tag">风雪垭口 · 你的抉择</b>
+        <p class="co-q">班上只剩最后一件棉衣。风越来越紧，你把它——</p>
+        <div class="co-opts">
+          <button class="co-opt" data-k="self">披在自己身上</button>
+          <button class="co-opt" data-k="mate">盖在身边的战友身上</button>
+        </div>
+        <p class="co-result" hidden></p>
+      </div>
+      <div class="ix-row reveal" id="snow-ix">
+        <div class="ix-btn big" id="fire-btn" role="button" tabindex="0">为战友生一堆火</div>
+        <span class="ix-status" id="fire-status">雪原上还没有一处火光</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 会师 -->
+  <section class="panel" id="ch7" data-ch="7">
+    <div class="story" data-wm="师">
+      <div class="story-head">
+        <span class="ch-no">第七章</span><span class="ch-date">1936年10月22日 · 会宁 · 将台堡</span>
+      </div>
+      <h2 class="ch-title">三 军 会 师</h2>
+      <figure class="ch-visual reveal" data-hs="7">
+        <div class="ch-stage">
+          <img src="assets/img/ch7_huishi.jpg" alt="三军会师——黎明下队伍会合红旗飘扬" loading="lazy">
+        </div>
+        <figcaption>三军会师</figcaption>
+      </figure>
+      <p class="ch-lead">红一、红二方面军在将台堡会师。历时两年，红军三大主力齐聚西北——举世震惊的长征，至此胜利结束。中国革命大本营，奠基西北。</p>
+      <p class="ch-detail">红军第一、第二、第四方面军先后在甘肃会宁、宁夏将台堡会师。两年间，各路红军纵横十余省、跋涉数万里，衣衫褴褛却信念如铁——他们把火种带到了陕北。</p>
+      <figure class="ch-video reveal">
+        <video src="assets/video/v3_flag.mp4" muted loop playsinline preload="none" poster="assets/img/ch7_huishi.jpg"></video>
+        <figcaption>会师之晨</figcaption>
+      </figure>
+      <div class="date-big">
+        <span class="d">1936</span><span class="dot">·</span><span class="d">10</span><span class="dot">·</span><span class="d">22</span>
+      </div>
+      <div class="poem-full reveal">
+        <div class="p-lines">
+          <p>红军不怕远征难，万水千山只等闲。</p>
+          <p>五岭逶迤腾细浪，乌蒙磅礴走泥丸。</p>
+          <p>金沙水拍云崖暖，大渡桥横铁索寒。</p>
+          <p>更喜岷山千里雪，三军过后尽开颜。</p>
+          <span class="poem-src">——毛泽东《七律·长征》 一九三五年十月</span>
+        </div>
+        <i class="seal">星火</i>
+      </div>
+      <aside class="side-note reveal">
+        <b class="sn-tag">史料侧记 · 会师楼前</b>
+        <p>会宁城头那座小楼，见证了两支铁流的握手。此后不到一年，全面抗战爆发，这支走完长征的队伍改编为八路军，东渡黄河，奔赴抗日战场。</p>
+      </aside>
+      <div class="quiz-block" data-ans="0" data-hint="关键词不在'装备'或'记录'，而在这一路走过的人与土地上。"
+        data-exp="长征是宣言书——它向全世界宣告，红军是英雄好汉；长征是宣传队——它向十一个省约两万万人民宣传了真理；长征是播种机——它播下的种子，此后发芽、长成大树。">
+        <b class="qz-tag">思考一下</b>
+        <p class="qz-q">毛泽东为什么说，长征是"宣言书、宣传队、播种机"？</p>
+        <div class="qz-opts">
+          <button class="qz-opt" data-k="0">因为它一路宣告了红军不可战胜，把真理的火种撒进了十余省的土地</button>
+          <button class="qz-opt" data-k="1">因为红军在长征途中带了许多印刷设备</button>
+          <button class="qz-opt" data-k="2">因为长征的行程被完整记录成了宣言文件</button>
+        </div>
+        <p class="qz-exp" hidden></p>
+      </div>
+      <div class="ix-row reveal" id="huishi-ix">
+        <div class="flag-row">
+          <div class="flag-btn" role="button" tabindex="0" aria-label="红一方面军点名"><i class="fb-cloth"></i><span>红一方面军</span></div>
+          <div class="flag-btn" role="button" tabindex="0" aria-label="红二方面军点名"><i class="fb-cloth"></i><span>红二方面军</span></div>
+          <div class="flag-btn" role="button" tabindex="0" aria-label="红四方面军点名"><i class="fb-cloth"></i><span>红四方面军</span></div>
+        </div>
+        <div class="ix-btn big" id="celebrate-btn" role="button" tabindex="0">点燃会师之火</div>
+        <span class="ix-status">先点名三支铁流，再点火</span>
+      </div>
+      <p class="ch-quote">90年前的这个十月，星星之火，自此燎原。</p>
+    </div>
+  </section>
+
+  <!-- 8 数据长卷 -->
+  <section class="panel datapanel" id="ch8" data-ch="8">
+    <div class="datawall">
+      <div class="dw-head">
+        <span class="ch-no">尾声</span>
+        <h2 class="ch-title">长 征 数 据 长 卷</h2>
+        <div class="dw-verse reveal"><span>天高云淡，望断南飞雁。不到长城非好汉，屈指行程二万。</span><span class="v-src">——毛泽东《清平乐·六盘山》</span></div>
+      </div>
+      <div class="dw-grid">
+        <div class="dw-item"><b class="num" data-count="368">0</b><span class="dw-cap">天 · 中央红军长征历时</span></div>
+        <div class="dw-item"><b class="num" data-count="12500" data-prefix="约">0</b><span class="dw-cap">公里 · 二万五千里</span></div>
+        <div class="dw-item"><b class="num" data-count="18">0</b><span class="dw-cap">座大山 · 其中5座终年积雪</span></div>
+        <div class="dw-item"><b class="num" data-count="24">0</b><span class="dw-cap">条大河 · 天堑横亘</span></div>
+        <div class="dw-item"><b class="num" data-count="600" data-suffix="+">0</b><span class="dw-cap">次重要战役战斗</span></div>
+        <div class="dw-item"><b class="num" data-count="14">0</b><span class="dw-cap">省 · 红军转战省份</span></div>
+        <div class="dw-item"><b class="num" data-count="7000" data-suffix="+">0</b><span class="dw-cap">人 · 中央红军到达陕北</span></div>
+      </div>
+      <div class="dw-note">
+        <div class="dwn-nums">
+          <b class="num dwn-num dim" data-count="86000">0</b>
+          <span class="dwn-cap">余人出发</span>
+          <i class="dwn-arrow">➜</i>
+          <b class="num dwn-num" data-count="7000">0</b>
+          <span class="dwn-cap">余人抵达</span>
+        </div>
+        <p class="dwn-line">每一个数字，都是用生命走出来的。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 结语 + 成就 -->
+  <section class="panel ending" id="ch9" data-ch="9">
+    <div class="end-inner">
+      <figure class="end-figure reveal" data-hs="9">
+        <div class="ch-stage">
+          <img src="assets/img/end_xinghuo.jpg" alt="星火燎原——大地星火汇成火河升向夜空" loading="lazy">
+          <video src="assets/video/v9_xinghe.mp4" muted loop playsinline preload="metadata" poster="assets/img/end_xinghuo.jpg"></video>
+        </div>
+        <figcaption>星火燎原</figcaption>
+      </figure>
+      <div id="achieve" class="achieve" hidden>
+        <div class="achv-medal"><i></i></div>
+        <b class="achv-title">行军完成 · 二万五千里</b>
+        <span class="achv-sub">你以滚动走完了这条星火之路</span>
+        <span class="achv-note">90年后，山河无恙，灯火万家。</span>
+      </div>
+      <blockquote class="end-quote"><span>每一代人都有每一代人的长征路，</span><span>每一代人都要走好自己的长征路。</span></blockquote>
+      <p class="end-sub">纪念中国工农红军长征胜利九十周年</p>
+      <p class="finale-line"></p>
+      <div class="cert-launch" id="cert-launch" role="button" tabindex="0">
+        <i class="cl-medal">✦</i>
+        <span class="cl-text">领取你的长征纪念证书</span>
+      </div>
+      <footer class="site-foot">
+        <p>星火之路 · 2026 ｜ 全国大学生数字媒体科技作品及创意竞赛 · 指定命题"红色之旅 追梦铸魂"赛项</p>
+        <p>史料依据：新华社、人民网、中国共产党新闻网等公开发布 ｜ 页面图卷与影像均为 AI 生成示意图</p>
+        <p>本作品创作过程使用 AI 辅助编程、文案润色、图像与影像生成，并搭载自研程序化配乐引擎；AI 使用情况已在参赛材料中如实披露</p>
+      </footer>
+    </div>
+  </section>
+
+</main>
+
+<!-- 探索提示 toast -->
+<div id="toast-box" aria-live="polite"></div>
+
+<!-- 图卷星标 · 故事弹窗 -->
+<div id="story-modal" aria-hidden="true">
+  <div class="sm-backdrop"></div>
+  <article class="sm-card" role="dialog" aria-modal="true" aria-label="图卷故事">
+    <div class="sm-img"></div>
+    <div class="sm-seal">史</div>
+    <button class="sm-close" aria-label="关闭故事">✕</button>
+    <div class="sm-chip"><b class="sm-tag"></b><span class="sm-ch"></span></div>
+    <h4 class="sm-title"></h4>
+    <p class="sm-text"></p>
+    <div class="sm-foot">✦ 图中还有其他星标 · 继续探索</div>
+  </article>
+</div>
+
+<!-- 征程总图 · 浮窗 -->
+<div id="map-overlay" aria-hidden="true">
+  <div class="mo-backdrop"></div>
+  <div class="mo-panel">
+    <div class="mo-head">
+      <span class="mo-kicker">征程总图</span>
+      <h3 class="mo-title">二万五千里 · 行军路线</h3>
+      <p class="mo-sub">点击星标，选择你的去处 —— 也可以随时回来，改道再走</p>
+      <button class="mo-close" aria-label="收起征程图">收起 ✕</button>
+    </div>
+    <div class="mo-scroll"><div class="route-map mo-map" id="route-map-2"></div></div>
+  </div>
+</div>
+
+<!-- 浮动 · 征程图按钮 -->
+<div id="map-btn" role="button" tabindex="0" title="征程总图" aria-label="打开征程总图">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18.5" r="2"/><circle cx="19" cy="5.5" r="2"/><path d="M7 18.5 C 12 18.5, 8 5.5, 17 5.5"/><path d="M11.5 12 l1.8 1.6 M13.3 12 l-1.8 1.6" opacity=".7"/></svg>
+  <span>征程图</span>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/music.js?v=43"></script>
+<script src="js/scene.js?v=43"></script>
+<script src="js/sfx.js?v=43"></script>
+<script src="js/app.js?v=43"></script>
+<script src="js/interaction.js?v=43"></script>
+<script src="js/explore.js?v=43"></script>
+<script src="js/emotion.js?v=43"></script>
+</body>
+</html>
