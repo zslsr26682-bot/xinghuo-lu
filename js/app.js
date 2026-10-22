@@ -31,7 +31,9 @@
   var STATIONS = ['封面', '出发 · 于都', '血战湘江', '遵义转折', '四渡赤水', '飞夺泸定桥', '雪山草地', '三军会师', '数据长卷', '结语'];
 
   /* 各章 3D 路线进度（对应 scene.js 运镜）与图面进度（地图/里程） */
-  var CH_U = [0, 0, 0.13, 0.30, 0.42, 0.56, 0.70, 0.985, 1, 1];
+  /* 3D 路线弧长断点：按 scene.js WPTS 实际弧长标定
+     于都0 → 湘江0.118 → 遵义0.244 → 赤水0.323 → 泸定0.559 → 雪山草地0.66 → 会师0.99 */
+  var CH_U = [0, 0, 0.118, 0.244, 0.323, 0.559, 0.66, 0.99, 1, 1];
   var CH_F = [0, 0.02, 0.15, 0.30, 0.45, 0.65, 0.82, 1, 1, 1];
 
   /* 各章全屏背景影像与字幕 */
@@ -56,7 +58,7 @@
     6: [['.ch-lead'], ['.ch-detail'], { video: 1 }, ['.ch-verse', '.duo-metrics'], ['.side-note'], ['#coat-ix'], ['#snow-ix'], { pastnow: 6 }],
     7: [['.ch-lead'], ['.ch-detail'], { video: 1 }, ['.date-big'], ['.poem-full'], ['.side-note'], ['.quiz-block'], ['#huishi-ix'], { pastnow: 7 }],
     8: [{ video: 1 }, ['.dw-grid'], ['.dw-note']],
-    9: [['.end-quote'], ['.end-sub', '.finale-line'], ['.cert-launch'], ['.site-foot']]
+    9: [['.end-quote'], ['.end-sub', '.finale-line'], ['.cert-launch', '#reply-launch'], ['.site-foot']]
   };
 
   /* 今昔同框：同一坐标，不同时间（当年/今天分栏，避免文字堆叠） */
@@ -77,7 +79,10 @@
   function setPastNow(sec, ch) {
     var layer = sec._pnLayer;
     if (!ch) {
-      if (layer) layer.classList.remove('on');
+      if (layer) {
+        layer.classList.remove('on', 'opened');
+        if (layer._tab) layer._tab.classList.remove('hide');
+      }
       sec.classList.remove('pn-on');
       var lc0 = sec.querySelector('.pn-livecap');
       if (lc0) lc0.style.display = 'none';
@@ -90,37 +95,82 @@
         '<div class="pnl-divider"><i>⇔</i></div>' +
         '<span class="pnl-l-old">当年</span><span class="pnl-l-new">今天</span>' +
         '<div class="pn-cap pn-cap-old"></div><div class="pn-cap pn-cap-new"></div>' +
-        '<div class="pn-hint">拖动金色分隔条 · 对比当年与今天</div>';
+        '<div class="pn-hint">悬停右侧「展开今昔对比」 · 再拖动金色分隔条</div>' +
+        '<div class="pn-tab" role="button" tabindex="0" aria-label="展开今昔对比"><i>⇔</i><span>展开今昔对比</span></div>';
       sec.appendChild(layer);
       sec._pnLayer = layer;
       var nowImg = layer.querySelector('.pnl-now');
       var div = layer.querySelector('.pnl-divider');
+      var tab = layer.querySelector('.pn-tab');
       var capOld = layer.querySelector('.pn-cap-old');
       var capNew = layer.querySelector('.pn-cap-new');
+      var lOld = layer.querySelector('.pnl-l-old');
+      var lNew = layer.querySelector('.pnl-l-new');
       var drag = false;
+      layer._tab = tab;
+
       function applyPct(pct) {
         pct = Math.max(4, Math.min(96, pct));
         nowImg.style.clipPath = 'inset(0 0 0 ' + pct.toFixed(1) + '%)';
         div.style.left = pct.toFixed(1) + '%';
         /* 文字随拖动位置渐变：当年侧露得多则旧文字显，今天侧露得多则新文字显 */
-        var oldOp = Math.min(1, Math.max(0, (pct - 8) / 44));   /* pct=8→0, pct=52→1 */
-        var newOp = Math.min(1, Math.max(0, (92 - pct) / 44));  /* pct=92→0, pct=48→1 */
+        var oldOp = Math.min(1, Math.max(0, (pct - 8) / 44));
+        var newOp = Math.min(1, Math.max(0, (92 - pct) / 44));
         capOld.style.opacity = oldOp.toFixed(2);
         capNew.style.opacity = newOp.toFixed(2);
         capOld.style.transform = 'translateY(' + (12 * (1 - oldOp)).toFixed(0) + 'px)';
         capNew.style.transform = 'translateY(' + (12 * (1 - newOp)).toFixed(0) + 'px)';
-        /* 边缘标签同步淡出：拖到今天侧"当年"标签隐去，拖到当年侧"今天"标签隐去 */
-        var lOld = layer.querySelector('.pnl-l-old');
-        var lNew = layer.querySelector('.pnl-l-new');
         if (lOld) lOld.style.opacity = Math.min(1, Math.max(0, (pct - 26) / 30)).toFixed(2);
         if (lNew) lNew.style.opacity = Math.min(1, Math.max(0, (74 - pct) / 30)).toFixed(2);
+        /* 拖到右端收起后，重新露出"展开今昔对比"标签，并允许再次展开 */
+        tab.classList.toggle('hide', pct < 88);
+        if (pct >= 88) layer.classList.remove('opened');
+        else layer.classList.add('opened');
+      }
+      function openCompare() {
+        if (layer.classList.contains('opened')) return;
+        layer.classList.add('opened');
+        tab.classList.add('hide');
+        nowImg.style.transition = 'clip-path 1.5s cubic-bezier(.25,.7,.2,1)';
+        div.style.transition = 'left 1.5s cubic-bezier(.25,.7,.2,1)';
+        capOld.style.transition = 'opacity 1.5s ease, transform 1.5s ease';
+        capNew.style.transition = 'opacity 1.5s ease, transform 1.5s ease';
+        if (lOld) lOld.style.transition = 'opacity 1.5s ease';
+        if (lNew) lNew.style.transition = 'opacity 1.5s ease';
+        nowImg.style.clipPath = 'inset(0 0 0 50%)';
+        div.style.left = '50%';
+        applyPct(50);
+        setTimeout(function () {
+          nowImg.style.transition = ''; div.style.transition = '';
+          capOld.style.transition = ''; capNew.style.transition = '';
+          if (lOld) lOld.style.transition = '';
+          if (lNew) lNew.style.transition = '';
+        }, 1650);
+        if (window.SFX) SFX.pluck(520);
       }
       function move(e) {
         var r = sec.getBoundingClientRect();
         var pct = (e.clientX - r.left) / r.width * 100;
         applyPct(pct);
       }
-      layer.addEventListener('pointerdown', function (e) { drag = true; move(e); e.preventDefault(); });
+      function startDrag(e) {
+        drag = true;
+        layer.classList.add('opened');
+        tab.classList.add('hide');
+        try { div.setPointerCapture(e.pointerId); } catch (err) {}
+        move(e);
+        e.preventDefault();
+      }
+      div.addEventListener('pointerdown', startDrag);
+      tab.addEventListener('pointerenter', openCompare);
+      tab.addEventListener('pointerover', openCompare);
+      tab.addEventListener('mouseenter', openCompare);
+      tab.addEventListener('mouseover', openCompare);
+      tab.addEventListener('focus', openCompare);
+      tab.addEventListener('click', function (e) { e.preventDefault(); openCompare(); });
+      tab.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCompare(); }
+      });
       window.addEventListener('pointerup', function () { drag = false; });
       window.addEventListener('pointermove', function (e) { if (drag && sec.classList.contains('current')) move(e); });
     }
@@ -129,41 +179,39 @@
     layer.querySelector('.pn-cap-new').textContent = PASTNOW[ch].now;
     sec.classList.add('pn-on');
     layer.classList.add('on');
-    /* 揭示：从全"当年"缓缓拉开，露出今天 */
+    /* 每次进入今昔步都先收起：只露当年的图，星标可点；悬停右侧标签才展开 */
+    layer.classList.remove('opened');
     var img2 = layer.querySelector('.pnl-now');
     var div2 = layer.querySelector('.pnl-divider');
+    var tab2 = layer.querySelector('.pn-tab');
+    var capO = layer.querySelector('.pn-cap-old');
+    var capN = layer.querySelector('.pn-cap-new');
+    var lO = layer.querySelector('.pnl-l-old');
+    var lN = layer.querySelector('.pnl-l-new');
     img2.style.transition = 'none'; div2.style.transition = 'none';
+    capO.style.transition = 'none'; capN.style.transition = 'none';
+    if (lO) lO.style.transition = 'none';
+    if (lN) lN.style.transition = 'none';
     img2.style.clipPath = 'inset(0 0 0 100%)'; div2.style.left = '100%';
-    layer.querySelector('.pn-cap-old').style.opacity = 1;
-    layer.querySelector('.pn-cap-new').style.opacity = 0;
+    capO.style.opacity = '1'; capO.style.transform = 'none';
+    capN.style.opacity = '0'; capN.style.transform = 'translateY(12px)';
+    if (lO) lO.style.opacity = '1';
+    if (lN) lN.style.opacity = '0';
+    tab2.classList.remove('hide');
     void img2.offsetWidth;
     setTimeout(function () {
-      img2.style.transition = 'clip-path 2.4s cubic-bezier(.25,.7,.2,1)';
-      div2.style.transition = 'left 2.4s cubic-bezier(.25,.7,.2,1)';
-      img2.style.clipPath = 'inset(0 0 0 50%)'; div2.style.left = '50%';
-      /* 文字随揭示动画同步淡入 */
-      var capO = layer.querySelector('.pn-cap-old');
-      var capN = layer.querySelector('.pn-cap-new');
-      capO.style.transition = 'opacity 2.4s ease, transform 2.4s ease';
-      capN.style.transition = 'opacity 2.4s ease, transform 2.4s ease';
-      capO.style.opacity = 1; capO.style.transform = 'none';
-      capN.style.opacity = 1; capN.style.transform = 'none';
-      var lO = layer.querySelector('.pnl-l-old'), lN = layer.querySelector('.pnl-l-new');
-      if (lO) { lO.style.transition = 'opacity 2.4s ease'; lO.style.opacity = 1; }
-      if (lN) { lN.style.transition = 'opacity 2.4s ease'; lN.style.opacity = 1; }
-      setTimeout(function () {
-        img2.style.transition = ''; div2.style.transition = '';
-        capO.style.transition = ''; capN.style.transition = '';
-        if (lO) lO.style.transition = '';
-        if (lN) lN.style.transition = '';
-      }, 2500);
-    }, 420);
+      img2.style.transition = ''; div2.style.transition = '';
+      capO.style.transition = ''; capN.style.transition = '';
+      if (lO) lO.style.transition = '';
+      if (lN) lN.style.transition = '';
+    }, 50);
     /* 移除旧的混合字幕（如有残留） */
     var oldCap = sec.querySelector('.pn-livecap');
     if (oldCap) oldCap.style.display = 'none';
   }
 
   var cur = 0, stepIdx = 0, transitioning = false;
+  var stepShownAt = 0;
   var panelsSteps = {};
   var steps = [];
   window.SparkCur = 0;
@@ -318,6 +366,7 @@
 
   function renderStep(silent) {
     var sec = sections[cur];
+    stepShownAt = Date.now();
     [].forEach.call(sec.querySelectorAll('.scene-el'), function (el) { el.classList.remove('on'); });
     var st = steps[stepIdx];
     if (st && st.els) {
@@ -327,6 +376,13 @@
         /* 数字在亮相时滚动 */
         [].forEach.call(el.querySelectorAll('.num[data-count]'), countUp);
       });
+    }
+    /* 湘江旁白后段只在"放河灯"步骤播放：前段介绍仍在入场时播；
+       v59 · 仅当介绍段被正常截断（'intro'）才补播后段——若整段已自然播完（'full'）则不重复 */
+    if (cur === 2 && voicePlayed[2] === 'intro' && audioInited && music.playing &&
+        sec.querySelector('#lantern-ix.on')) {
+      voicePlayed[2] = 'lantern';
+      setTimeout(function () { if (cur === 2) playVoice(2, 'lantern'); }, 420);
     }
     /* 今昔步：全屏对照接管画面；其余步收起 */
     var wantPN = !!(st && st.pastnow);
@@ -456,13 +512,16 @@
     var wantAuto = autoWanted;   /* 记录用户是否希望自动行军（即便章末已暂停） */
     if (!fromAuto) stopAuto();
     transitioning = true;
+    /* v59 · 换章立刻停上一章旁白：此前 v_ch1 会跨章继续播十几秒，与新一章旁白叠音 */
+    stopVoice();
     var from = cur;
     cur = idx;
     window.SparkCur = idx;
     stepIdx = 0;
     steps = panelsSteps[idx] || [];
+    voicePlayed = {};
 
-    showVeil(idx);
+    showVeil(idx, from);
 
     /* v35 · 无缝转场：旧幕与新幕在转场幕下直接交叉淡入淡出，
        两者透明度互补（1-t 与 t），全程无空窗、无"卡一下再跳" */
@@ -485,8 +544,6 @@
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           steps = panelsSteps[idx] || [];
-          var svg = sec.querySelector('#sidu-svg');
-          if (svg) svg.classList.add('play');
           if (idx === 9) {
             triggerAchieve();
             var endVid = sec.querySelector('.end-figure video');
@@ -499,18 +556,31 @@
       });
     }, 380);
 
-    /* 抵达联动分帧执行：配乐/氛围/旁白/粒子不挤在同一帧 */
+    /* 抵达联动分帧执行（v57 · 随幕布 3.2s 回调整体前移）：
+       运镜补间 2.6s 先行，配乐/氛围在幕布将撤时切入，旁白随后 */
+    setTimeout(function () {
+      music.setChapter(idx);
+      applyAtmosphere(idx);
+    }, 2400);
+    /* 飞行段：让路线亮管与运镜同步走完，再撤去全程淡影 */
     setTimeout(function () {
       document.body.classList.remove('flight');
       if (scene3d.setGhostRoute) scene3d.setGhostRoute(false);
-      music.setChapter(idx);
-      applyAtmosphere(idx);
-    }, 1350);
+    }, 2900);
     setTimeout(function () {
       if (window.SparkAmbientRefresh) SparkAmbientRefresh();
-    }, 1500);
+    }, 2600);
     setTimeout(function () {
-      playVoice(idx);
+      /* 第二章入场先播战役介绍，放灯句留到河灯步骤 */
+      if (idx === 2) {
+        /* 入场先播战役介绍，到河灯步再播"放一盏河灯"后段 */
+        if (!voicePlayed[2]) {
+          voicePlayed[2] = 'intro';
+          playVoice(2, 'intro');
+        }
+      } else {
+        playVoice(idx);
+      }
       /* 章节氛围音效：号角/水流/风雪，强化情绪起伏 */
       if (window.SFX && SFX.isEnabled()) {
         if (idx === 1) { setTimeout(function(){ SFX.bugle(); }, 600); }
@@ -519,7 +589,7 @@
         else if (idx === 7) { setTimeout(function(){ SFX.bugle(); }, 1200); SFX.crackle(8); }
         else if (idx === 9) { setTimeout(function(){ SFX.chime(true); }, 800); }
       }
-    }, 1700);
+    }, 2800);
     /* 空闲预载下一幕影像：保证"到达下一站"永远无缝 */
     setTimeout(function () {
       var nx = sections[idx + 1];
@@ -527,17 +597,17 @@
         nx._sceneVideo.preload = 'auto';
         nx._sceneVideo.load();
       }
-    }, 2400);
+    }, 2200);
     /* 若用户希望自动行军，进入新章后自动恢复（章末会再次停下） */
     if (wantAuto && idx > 0 && idx < N - 1) {
-      setTimeout(startAuto, 2000);
+      setTimeout(startAuto, 3600);
     }
 
-    /* 进度 / 里程 / 运镜 补间（1.9s，与交叉淡入淡出同节奏） */
+    /* 进度 / 里程 / 运镜补间（2.6s，与回调后的转场幕同节奏） */
     var f0 = CH_F[from], f1 = CH_F[idx];
     var u0 = CH_U[from], u1 = CH_U[idx];
     var p0 = from / (N - 1), p1 = idx / (N - 1);
-    tween(1900, function (e) {
+    tween(2600, function (e) {
       setProgress(f0 + (f1 - f0) * e, u0 + (u1 - u0) * e);
       camP = p0 + (p1 - p0) * e;
     }, function () {
@@ -545,7 +615,7 @@
       camP = p1;
     });
 
-    setTimeout(function () { transitioning = false; }, 2000);
+    setTimeout(function () { transitioning = false; }, 3500);
   }
 
   function updateHud() {
@@ -643,7 +713,7 @@
     4: { k: '第肆章', p: '川黔滇 · 赤水河', s: '一九三五年一月至三月', f: 0.45, li: 11250, n: '赤水' },
     5: { k: '第伍章', p: '川西 · 泸定桥', s: '一九三五年五月二十九日', f: 0.65, li: 16250, n: '泸定桥' },
     6: { k: '第陆章', p: '川西北 · 夹金山与草地', s: '一九三五年六月至八月', f: 0.82, li: 20500, n: '雪山草地' },
-    7: { k: '第柒章', p: '陇东 · 将台堡', s: '一九三六年十月二十二日', f: 1, li: 25000, n: '会宁' },
+    7: { k: '第柒章', p: '甘宁 · 会宁与将台堡', s: '一九三六年十月二十二日', f: 1, li: 25000, n: '会宁' },
     8: { k: '尾声', p: '二万五千里', s: '三百六十八天', f: 1, li: 25000, n: '全程' },
     9: { k: '终章', p: '星火不灭', s: '山河无恙', f: 1, li: 25000, n: '星火' }
   };
@@ -652,18 +722,22 @@
   var cvKicker = veilEl.querySelector('.cv-kicker');
   var cvPlace = veilEl.querySelector('.cv-place');
   var cvSub = veilEl.querySelector('.cv-sub');
+  var cvrFrom = veilEl.querySelector('.cvr-from');
   var cvrFill = veilEl.querySelector('.cvr-fill');
   var cvrTo = veilEl.querySelector('.cvr-to');
   var cvLi = veilEl.querySelector('.cv-li');
   var veilTimer = null;
   var lastVeilF = 0;
 
-  function showVeil(ch) {
+  function showVeil(ch, from) {
     var v = VEILS[ch];
     if (!v) return;
     cvKicker.textContent = v.k;
     cvPlace.textContent = v.p;
     cvSub.textContent = v.s;
+    /* 路线条必须从上一站出发，而不是永远写"于都" */
+    cvrFrom.textContent = (from !== undefined && from !== null && VEILS[from] && from !== 0)
+      ? VEILS[from].n : '于都';
     cvrTo.textContent = v.n;
     cvLi.textContent = ch === 1 ? '星火自此出发' : '已行 ' + v.li.toLocaleString('en-US') + ' 里';
     cvrFill.style.transition = 'none';
@@ -675,6 +749,7 @@
     });
     lastVeilF = v.f;
     veilEl.classList.remove('show');
+    veilEl.classList.toggle('no-route', ch === 1 || ch >= 8);
     inkVeil.classList.remove('pulse');
     void veilEl.getBoundingClientRect();
     veilEl.classList.add('show');
@@ -682,17 +757,30 @@
     if (window.SFX) SFX.march();
     if (window.SparkFX) SparkFX.jolt(false);
     if (veilTimer) clearTimeout(veilTimer);
-    veilTimer = setTimeout(function () { veilEl.classList.remove('show'); }, 2100);
+    /* v57 · 幕布驻留回调至 3.2s：金线 0.55s 起笔 1.8s 走完，站名驻足约 1s 即撤 */
+    veilTimer = setTimeout(function () { veilEl.classList.remove('show'); }, 3200);
   }
 
   /* ---------- 章节旁白 ---------- */
   var voiceCache = {};
   var curVoice = null;
-  function playVoice(ch) {
+  var voicePlayed = {};
+  /* v59 · 湘江旁白已物理切分：v_ch2a=介绍段（入场即播，12s）、
+     v_ch2b=放灯句（河灯步才播，4s）——两段独立文件，
+     彻底消除 seek 失效导致的"同一句话"整段重播 */
+  function stopVoice() {
+    if (curVoice) {
+      try { curVoice.pause(); } catch (e) {}
+      curVoice = null;
+    }
+    if (music && music.restore) music.restore();
+  }
+  function playVoice(ch, part) {
     if (curVoice) { curVoice.pause(); curVoice = null; }
     if (!audioInited || !music.playing || !VEILS[ch]) return;
-    if (!voiceCache[ch]) voiceCache[ch] = new Audio('assets/voice/v_ch' + ch + '.mp3');
-    var a = voiceCache[ch];
+    var file = 'v_ch' + ch + (ch === 2 ? (part === 'lantern' ? 'b' : 'a') : '');
+    if (!voiceCache[file]) voiceCache[file] = new Audio('assets/voice/' + file + '.mp3');
+    var a = voiceCache[file];
     a.currentTime = 0;
     curVoice = a;
     music.duck(0.2);
@@ -760,6 +848,9 @@
     if (!audioInited) { ensureAudio(); updateHud(); }
     autoTimer = setInterval(function () {
       if (transitioning || document.body.classList.contains('ov-lock')) return;
+      /* 泸定桥影像步停留更久：5 秒视频至少完整看两遍再自动推进 */
+      var stNow = steps[stepIdx];
+      if (cur === 5 && stNow && stNow.video && Date.now() - stepShownAt < 9500) return;
       if (hasNextStep()) {
         setStep(stepIdx + 1);
         var st = steps[stepIdx];
@@ -776,12 +867,19 @@
     }, 5000);
   }
   function stopAuto() {
+    autoBtn.classList.remove('waiting');
     if (!autoOn) return;
     autoOn = false;
     autoBtn.classList.remove('on');
     clearInterval(autoTimer);
     clearIXWatch();
   }
+  /* 终章交互完成后主动取消自动行军：让"会师之火"的结果块留在画面里 */
+  window.SparkCancelAuto = function () {
+    autoWanted = false;
+    stopAuto();
+    autoBtn.classList.remove('waiting');
+  };
   /* 轮询交互是否完成，完成后留 1.5 秒欣赏结果，再恢复自动行军 */
   function waitIXDone(st) {
     clearIXWatch();

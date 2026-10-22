@@ -364,12 +364,19 @@
   (function () {
     var flags = [].slice.call(document.querySelectorAll('#huishi-ix .flag-btn'));
     if (!flags.length) return;
-    var lit = 0;
+    var lit = flags.filter(function (f) { return f.classList.contains('lit'); }).length;
+    window.SparkFlagsLit = lit;
+    if (lit >= 3 && !document.querySelector('#celebrate-btn.on')) {
+      var cb0 = document.getElementById('celebrate-btn');
+      if (cb0) cb0.classList.remove('locked');
+      if (window.SparkCelebUrge) window.SparkCelebUrge();
+    }
     flags.forEach(function (f) {
       f.addEventListener('click', function () {
         if (f.classList.contains('lit')) return;
         f.classList.add('lit');
         lit++;
+        window.SparkFlagsLit = lit;
         var r = f.getBoundingClientRect();
         if (window.SparkFX) SparkFX.burst(r.left + r.width / 2, r.top + 10, 8, true);
         if (window.SFX) { SFX.pluck(420 + lit * 80); }
@@ -595,6 +602,7 @@
           Object.keys(ROADS).map(function (k) { return '<button class="cm-road-btn" data-k="' + k + '">' + ROADS[k].label + '</button>'; }).join('') +
           '</div></div>') +
       '<div class="cm-foot"><span>星火之路 · 二〇二六年十月</span><i class="cm-seal">星火<br>不灭</i></div>' +
+      '<div class="cm-reply-wrap"><button class="cm-reply" id="cm-reply">给红军战士回一封信</button></div>' +
       '</div>';
     /* 选择"你的长征路" */
     [].forEach.call(card.querySelectorAll('.cm-road-btn'), function (b) {
@@ -608,6 +616,8 @@
         buildCert();   /* 重新渲染，带入寄语 */
       });
     });
+    var cmReply = card.querySelector('#cm-reply');
+    if (cmReply) cmReply.addEventListener('click', function () { openReply(); });
   }
   function lanternCount() {
     return document.querySelectorAll('#ch2 .lantern').length;
@@ -654,6 +664,214 @@
   certModal.querySelector('.cm-backdrop').addEventListener('click', closeCert);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && certModal.classList.contains('show')) closeCert();
+  });
+
+  /* ============ 七·丙、证书之后：红军寄语与观众回信 ============ */
+  var replyModal = document.createElement('div');
+  replyModal.id = 'reply-modal';
+  replyModal.setAttribute('aria-hidden', 'true');
+  replyModal.innerHTML =
+    '<div class="rp-backdrop"></div>' +
+    '<article class="rp-card" role="dialog" aria-modal="true" aria-label="给红军战士回一封信">' +
+    '<button class="rp-close" aria-label="收起回信">✕</button>' +
+    '<div class="rp-head"><span class="rp-kicker">一九三六年十月 · 陕北</span><h3 class="rp-title">致九十年后的你</h3></div>' +
+    '<div class="rp-letter"><p class="rp-salute">同志：</p><p class="rp-msg"></p><p class="rp-sign">——红军战士 · 一九三六年十月</p></div>' +
+    '<div class="rp-write">' +
+    '<label class="rp-label" for="rp-text">你的回信</label>' +
+    '<textarea id="rp-text" class="rp-text" maxlength="120" placeholder="写下一句话，寄给九十年前的他们……"></textarea>' +
+    '<div class="rp-chips"></div>' +
+    '<div class="rp-actions"><span class="rp-count">0 / 120</span><button class="rp-send" id="rp-send">寄 出 回 信</button></div>' +
+    '<p class="rp-hint" id="rp-hint"></p>' +
+    '</div>' +
+    '<div class="rp-done" hidden>' +
+    '<i class="rp-stamp">收到</i>' +
+    '<p class="rp-done-text"></p>' +
+    '<p class="rp-done-sign"></p>' +
+    '<p class="rp-done-note">九十年前的那盏灯，亮了。</p>' +
+    '<button class="rp-mine-btn" id="rp-mine-btn">✉ 翻看我寄出的信</button>' +
+    '<div class="rp-mine" id="rp-mine" hidden></div>' +
+    '<button class="rp-again" id="rp-again">再写一封</button>' +
+    '</div>' +
+    '</article>';
+  document.body.appendChild(replyModal);
+
+  var REPLY_LETTERS = {
+    study: '如果你正坐在灯下读书，请替我们多读几页。我们翻雪山、过草地，就是想让你们不必再在雪地里认字。',
+    startup: '前路没有地图，就自己走出一条。我们四渡赤水时也不知道下一步在哪里，只知道不能停下。',
+    research: '攻关如夺桥：铁索再寒，也要爬过去。你们要解的难题，也许比我们的雪山更高，但道理一样——一步，再一步。',
+    guard: '九十年前我们守山河，今天你守万家灯火。岗位不同，枪口都朝着同一个方向。',
+    ordinary: '把平凡的日子过好，就是这一代人的长征。柴米油盐里，亦有星火。',
+    'default': '如果你读到这封信，说明我们已经走过去了。请替我们看看——于都河上是否架起了大桥，泸定桥边是否还有孩子在奔跑。'
+  };
+  var REPLY_QUICK = ['这盛世，如您所愿。', '我会走好自己的长征路。', '山河无恙，星火不灭。', '谢谢你们，换来了今天的灯火。'];
+  var REPLY_KEY = 'spark_reply_v1';
+
+  var replyCache = null;
+  /* v58 · 信箱：存储改为信件数组（兼容旧版单封对象），寄出过的信随时可翻看 */
+  function loadReply() {
+    if (replyCache) return replyCache;
+    try {
+      var s = localStorage.getItem(REPLY_KEY);
+      if (!s) return null;
+      var v = JSON.parse(s);
+      replyCache = Array.isArray(v) ? v : [v];
+      return replyCache;
+    } catch (e) { return null; }
+  }
+  function addReply(obj) {
+    var box = loadReply() || [];
+    box.push(obj);
+    if (box.length > 20) box = box.slice(-20);
+    replyCache = box;
+    try { localStorage.setItem(REPLY_KEY, JSON.stringify(box)); } catch (e) {}
+  }
+  function updateReplyCount() {
+    var t = replyModal.querySelector('.rp-text');
+    var c = replyModal.querySelector('.rp-count');
+    if (t && c) c.textContent = t.value.length + ' / 120';
+  }
+  function buildReply() {
+    var saved = loadReply();
+    var msg = replyModal.querySelector('.rp-msg');
+    var letter = replyModal.querySelector('.rp-letter');
+    var write = replyModal.querySelector('.rp-write');
+    var done = replyModal.querySelector('.rp-done');
+    var chips = replyModal.querySelector('.rp-chips');
+    var text = replyModal.querySelector('.rp-text');
+    msg.textContent = REPLY_LETTERS[soldier.road] || REPLY_LETTERS['default'];
+    var hintEl = replyModal.querySelector('.rp-hint');
+    if (hintEl) hintEl.textContent = '';
+    var mineBox = replyModal.querySelector('.rp-mine');
+    var mineBtn = replyModal.querySelector('.rp-mine-btn');
+    if (mineBox) { mineBox.innerHTML = ''; mineBox.hidden = true; }
+    if (mineBtn) {
+      mineBtn.textContent = saved && saved.length > 1
+        ? '✉ 翻看我寄出的信（' + saved.length + ' 封）' : '✉ 翻看我寄出的信';
+    }
+    var latest = saved && saved.length ? saved[saved.length - 1] : null;
+    if (latest) {
+      letter.hidden = true;
+      write.hidden = true;
+      done.hidden = false;
+      replyModal.querySelector('.rp-done-text').textContent = latest.text;
+      replyModal.querySelector('.rp-done-sign').textContent = '——九十年后的 ' + (latest.name || soldier.name) + ' · ' + (latest.date || '');
+      /* 信箱：寄出过的每一封都以信笺样式列出，供随时翻看 */
+      if (mineBox) {
+        saved.slice().reverse().forEach(function (m) {
+          var paper = document.createElement('div');
+          paper.className = 'rp-mine-paper';
+          paper.innerHTML = '<p class="rp-mine-text"></p><p class="rp-mine-sign"></p>';
+          paper.querySelector('.rp-mine-text').textContent = m.text;
+          paper.querySelector('.rp-mine-sign').textContent = '——九十年后的 ' + (m.name || soldier.name) + ' · ' + (m.date || '');
+          mineBox.appendChild(paper);
+        });
+      }
+    } else {
+      letter.hidden = false;
+      write.hidden = false;
+      done.hidden = true;
+      text.value = '';
+      updateReplyCount();
+      chips.innerHTML = REPLY_QUICK.map(function (s) {
+        return '<button class="rp-chip" type="button">' + s + '</button>';
+      }).join('');
+      [].forEach.call(chips.querySelectorAll('.rp-chip'), function (b) {
+        b.addEventListener('click', function () {
+          text.value = b.textContent;
+          updateReplyCount();
+          text.focus();
+        });
+      });
+    }
+    var la = document.getElementById('reply-launch');
+    if (la) {
+      la.querySelector('.cl-text').textContent = saved
+        ? '回信已寄出 · 再写一封' : '给红军战士回一封信';
+    }
+  }
+  function openReply() {
+    /* 若证书正开着，直接收起证书层，不恢复星河影像，避免闪一下 */
+    if (certModal.classList.contains('show')) {
+      certModal.classList.remove('show');
+      certModal.setAttribute('aria-hidden', 'true');
+    }
+    buildReply();
+    replyModal.classList.add('show');
+    replyModal.setAttribute('aria-hidden', 'false');
+    var rpCard = replyModal.querySelector('.rp-card');
+    if (rpCard) rpCard.scrollTop = 0;
+    document.body.classList.add('ov-lock', 'cert-open');
+    setEndVideo(true);
+    if (window.SFX) SFX.ink();
+    if (!loadReply()) setTimeout(function () {
+      var t = replyModal.querySelector('.rp-text');
+      if (t) { try { t.focus(); } catch (e) {} }
+    }, 350);
+  }
+  function closeReply() {
+    replyModal.classList.remove('show');
+    replyModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('ov-lock', 'cert-open');
+    setEndVideo(false);
+  }
+  var replyLaunch = document.getElementById('reply-launch');
+  if (replyLaunch) {
+    replyLaunch.addEventListener('click', openReply);
+    replyLaunch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openReply(); }
+    });
+  }
+  replyModal.querySelector('.rp-backdrop').addEventListener('click', closeReply);
+  replyModal.querySelector('.rp-close').addEventListener('click', closeReply);
+  replyModal.querySelector('.rp-text').addEventListener('input', updateReplyCount);
+  replyModal.querySelector('#rp-send').addEventListener('click', function () {
+    var t = replyModal.querySelector('.rp-text');
+    var hint = replyModal.querySelector('.rp-hint');
+    var v = (t.value || '').trim();
+    if (v.length < 2) {
+      hint.textContent = '写一句话吧，哪怕只有几个字。';
+      if (window.SFX) SFX.ink();
+      t.focus();
+      return;
+    }
+    addReply({
+      text: v.slice(0, 120),
+      name: soldier.name,
+      road: soldier.road || '',
+      date: new Date().toLocaleDateString('zh-CN')
+    });
+    buildReply();
+    var rc = replyModal.querySelector('.rp-card');
+    if (rc) rc.scrollTop = 0;
+    if (window.SFX) SFX.chime(false);
+  });
+  replyModal.querySelector('#rp-mine-btn').addEventListener('click', function () {
+    var box = replyModal.querySelector('.rp-mine');
+    var btn = replyModal.querySelector('.rp-mine-btn');
+    if (!box) return;
+    var willOpen = box.hidden;
+    box.hidden = !willOpen;
+    if (btn) btn.classList.toggle('open', willOpen);
+    var rc = replyModal.querySelector('.rp-card');
+    if (rc && willOpen) rc.scrollTop = rc.scrollHeight;
+  });
+  replyModal.querySelector('#rp-again').addEventListener('click', function () {
+    /* v58 · 再写一封不再销毁旧信：历史信件保留在信箱中随时翻看 */
+    var letter2 = replyModal.querySelector('.rp-letter');
+    var write2 = replyModal.querySelector('.rp-write');
+    var done2 = replyModal.querySelector('.rp-done');
+    if (letter2) letter2.hidden = true;
+    if (write2) write2.hidden = false;
+    if (done2) done2.hidden = true;
+    var t2 = replyModal.querySelector('.rp-text');
+    if (t2) { t2.value = ''; updateReplyCount(); }
+    var rc2 = replyModal.querySelector('.rp-card');
+    if (rc2) rc2.scrollTop = 0;
+    var t3 = replyModal.querySelector('.rp-text');
+    if (t3) { try { t3.focus(); } catch (e) {} }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && replyModal.classList.contains('show')) closeReply();
   });
 
   /* ============ 九、今昔同框：已融入场景引擎（app.js 终章步） ============ */

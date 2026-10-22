@@ -170,6 +170,11 @@
 
     function start(e) {
       if (done || holding) return;
+      /* 条件未满足时只给提示，不作蓄力、不出声，避免"错误提示音"的挫败感 */
+      if (opts.canStart && !opts.canStart()) {
+        if (opts.onBlocked) opts.onBlocked();
+        return;
+      }
       holding = true;
       el.classList.add('charging');
       if (opts.onStart) opts.onStart();
@@ -318,17 +323,46 @@
     4: '四渡 · 3月21—22日，二郎滩秘密东渡，挥师南下——跳出重围！'
   };
 
+  var siduShown = 0;
+  function addSiduFlow(cross) {
+    var line = cross.querySelector('.c-line');
+    if (!line) return;
+    var flow = line.cloneNode(false);
+    flow.setAttribute('class', 'c-flow');
+    cross.insertBefore(flow, cross.querySelector('.c-head'));
+  }
+  function addSiduRipple(cross) {
+    var line = cross.querySelector('.c-line');
+    if (!line || !line.getTotalLength) return;
+    var pt = line.getPointAtLength(line.getTotalLength());
+    var NS = 'http://www.w3.org/2000/svg';
+    for (var i = 0; i < 2; i++) {
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', pt.x);
+      c.setAttribute('cy', pt.y);
+      c.setAttribute('r', '5');
+      c.setAttribute('class', 'c-ripple');
+      c.style.animationDelay = (i * 0.18) + 's';
+      cross.appendChild(c);
+      (function (el) {
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1800);
+      })(c);
+    }
+  }
   siduCtl.addEventListener('click', function (e) {
     var btn = e.target.closest('.ix-btn');
     if (!btn || !siduSvg) return;
     var x = btn.getAttribute('data-x');
-    siduSvg.classList.remove('play', 'step-1', 'step-2', 'step-3', 'step-4');
-    [].forEach.call(siduCtl.querySelectorAll('.ix-btn'), function (b) {
-      b.classList.remove('on');
-    });
-    void siduSvg.getBoundingClientRect();
-    siduSvg.classList.add('step-' + x);
+    var cross = siduSvg.querySelector('.cross[data-i="' + (x - 1) + '"]');
     btn.classList.add('on');
+    /* 只让点过的那一渡出现；已渡过的路线保留，形成逐渡叠加的行程 */
+    if (cross && !cross.classList.contains('show')) {
+      cross.classList.add('show');
+      addSiduFlow(cross);
+      addSiduRipple(cross);
+      siduShown++;
+    }
+    if (siduShown >= 4) siduSvg.classList.add('all');
     siduStatus.textContent = SIDU_INFO[x];
     siduStatus.classList.add('done');
     /* 部队真的在渡河：一枚红军光点沿本渡路线推进，渡毕在彼岸留下一枚渡痕 */
@@ -449,15 +483,18 @@
     if (st) { st.textContent = txt; if (doneCls) st.classList.add('done'); }
   }
   if (celebBtn) {
+    celebBtn.classList.add('locked');
     var celebHold = holdCharge(celebBtn, {
       duration: 1500,
+      canStart: function () { return (window.SparkFlagsLit || 0) >= 3; },
+      onBlocked: function () { celebStatus('先点亮三面军旗，再点燃会师之火'); },
       onStart: function () { if (!celebDone) celebStatus('火把凑近篝火堆了……稳住，别松'); },
       onRelease: function () { if (!celebDone) celebStatus('火苗熄了。三军还在等——再蓄一次力'); },
       onComplete: function () {
         if (celebDone) return;
         celebDone = true;
         celebHold.lock();
-        celebBtn.classList.remove('urge');   /* 催促脉冲退场，避免与 .on 同色吞字 */
+        celebBtn.classList.remove('urge', 'locked');   /* 催促脉冲退场，避免与 .on 同色吞字 */
         celebBtn.classList.add('on');
         var r = celebBtn.getBoundingClientRect();
         var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -473,11 +510,14 @@
         setTimeout(function () { stageMark(7, 70, 60, 'mark-fire'); }, 700);
         if (window.SparkReward) SparkReward(7);
         celebStatus('三军既会，星火已连成一片', true);
+        /* 点火完成即停住自动行军：结果块与"到达下一站"留给用户自己决定 */
+        if (window.SparkCancelAuto) window.SparkCancelAuto();
         setTimeout(function () { if (window.SFX) SFX.chime(true); }, 500);
       }
     });
     /* 三旗点名完毕：催促点火（脉冲），由用户亲手蓄力点燃 */
     window.SparkCelebUrge = function () {
+      celebBtn.classList.remove('locked');
       celebBtn.classList.add('urge');
       celebStatus('三军既会——按住点火！');
     };

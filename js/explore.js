@@ -54,8 +54,8 @@
       { x: 50, y: 22, tag: '事件', t: '奠基西北', s: '会师不到一年，全面抗战爆发。这支衣衫褴褛却信念如铁的队伍改编为八路军，东渡黄河、开赴前线——长征的终点，成了抗战的起点。' }
     ],
     '9': [
-      { x: 50, y: 48, tag: '事件', t: '星星之火，可以燎原', s: '一九三〇年，毛泽东写下这个著名的判断。二十六年后，从长征走出来的队伍，让一个崭新的中国站了起来——星星之火，果真燎原。' },
-      { x: 75, y: 25, tag: '事件', t: '山河无恙', s: '九十年后的今天，泸定桥上车流如织，会宁城里书声琅琅，于都河畔灯火万家。你们当年用生命守护的愿望，如今都实现了。' }
+      { x: 11, y: 32, tag: '事件', t: '星星之火，可以燎原', s: '一九三〇年，毛泽东写下这个著名的判断。二十六年后，从长征走出来的队伍，让一个崭新的中国站了起来——星星之火，果真燎原。' },
+      { x: 89, y: 20, tag: '事件', t: '山河无恙', s: '九十年后的今天，泸定桥上车流如织，会宁城里书声琅琅，于都河畔灯火万家。你们当年用生命守护的愿望，如今都实现了。' }
     ]
   };
   var CH_LABEL = {
@@ -107,7 +107,13 @@
       badge.className = 'hs-badge';
       badge.innerHTML = '✦ 图中星标 <b>0/' + list.length + '</b>';
       fig.appendChild(badge);
-      fig._hs = { badge: badge, total: list.length, seen: 0 };
+      /* 寻遍本图后的完成提示：贴在点击区下缘，避开右上角里程 HUD */
+      var doneNote = document.createElement('div');
+      doneNote.className = 'hs-done';
+      doneNote.setAttribute('aria-live', 'polite');
+      doneNote.textContent = '图中星标已全部学完 · 继续前行';
+      fig.appendChild(doneNote);
+      fig._hs = { badge: badge, total: list.length, seen: 0, done: doneNote };
     }
 
     /* 指针视差 + 滚动视差（仅长卷模式；场景模式由全屏舞台接管） */
@@ -233,7 +239,12 @@
       sp.style.animationDelay = (0.3 + k * 0.55) + 's';
       smText.appendChild(sp);
     });
-    smFoot.textContent = '✦ 图中还有其他星标 · 继续探索';
+    var hs = fig._hs;
+    var willSee = hs ? hs.seen + (dot.classList.contains('seen') ? 0 : 1) : 0;
+    var allDone = hs && willSee >= hs.total;
+    smFoot.textContent = allDone
+      ? '✦ 图中的星标已全部学完 · 继续前行'
+      : '✦ 图中还有其他星标 · 继续探索' + (hs ? '（' + willSee + '/' + hs.total + '）' : '');
     modal.classList.add('show');
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('ov-lock');
@@ -254,8 +265,9 @@
       if (h) {
         h.seen++;
         if (h.seen >= h.total) {
-          h.badge.innerHTML = '✦ ' + h.total + ' 段故事 · 已寻遍';
+          h.badge.innerHTML = '✦ ' + h.total + ' / ' + h.total + ' · 已寻遍';
           h.badge.classList.add('all');
+          if (h.done) h.done.classList.add('show');
           var r = fig.getBoundingClientRect();
           var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
           if (window.SparkFX) { SparkFX.burst(cx, cy, 22, true); SparkFX.ring(cx, cy, true); }
