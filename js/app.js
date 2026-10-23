@@ -84,6 +84,8 @@
         if (layer._tab) layer._tab.classList.remove('hide');
       }
       sec.classList.remove('pn-on');
+      var h0 = sec.querySelector('.scene-head');
+      if (h0) { h0.style.transition = ''; h0.style.opacity = ''; h0.style.transform = ''; }
       var lc0 = sec.querySelector('.pn-livecap');
       if (lc0) lc0.style.display = 'none';
       return;
@@ -106,6 +108,7 @@
       var capNew = layer.querySelector('.pn-cap-new');
       var lOld = layer.querySelector('.pnl-l-old');
       var lNew = layer.querySelector('.pnl-l-new');
+      var head = sec.querySelector('.scene-head');
       var drag = false;
       layer._tab = tab;
 
@@ -120,8 +123,15 @@
         capNew.style.opacity = newOp.toFixed(2);
         capOld.style.transform = 'translateY(' + (12 * (1 - oldOp)).toFixed(0) + 'px)';
         capNew.style.transform = 'translateY(' + (12 * (1 - newOp)).toFixed(0) + 'px)';
-        if (lOld) lOld.style.opacity = Math.min(1, Math.max(0, (pct - 26) / 30)).toFixed(2);
-        if (lNew) lNew.style.opacity = Math.min(1, Math.max(0, (74 - pct) / 30)).toFixed(2);
+        /* 徽标全程可见，仅当所属画面窄到放不下徽标时才淡出（避免左上角"当年"字在拖动中消失） */
+        if (lOld) lOld.style.opacity = Math.min(1, Math.max(0, (pct - 10) / 8)).toFixed(2);
+        if (lNew) lNew.style.opacity = Math.min(1, Math.max(0, (90 - pct) / 8)).toFixed(2);
+        /* 章节标题（出发/血战湘江…）与昔/今解说文字同款渐变：拖向当年侧显现，拖向今天侧隐去 */
+        if (head) {
+          head.style.transition = 'none';
+          head.style.opacity = oldOp.toFixed(2);
+          head.style.transform = 'translateY(' + (12 * (1 - oldOp)).toFixed(0) + 'px)';
+        }
         /* 拖到右端收起后，重新露出"展开今昔对比"标签，并允许再次展开 */
         tab.classList.toggle('hide', pct < 88);
         if (pct >= 88) layer.classList.remove('opened');
@@ -140,11 +150,13 @@
         nowImg.style.clipPath = 'inset(0 0 0 50%)';
         div.style.left = '50%';
         applyPct(50);
+        if (head) head.style.transition = 'opacity 1.5s ease, transform 1.5s ease';
         setTimeout(function () {
           nowImg.style.transition = ''; div.style.transition = '';
           capOld.style.transition = ''; capNew.style.transition = '';
           if (lOld) lOld.style.transition = '';
           if (lNew) lNew.style.transition = '';
+          if (head) head.style.transition = '';
         }, 1650);
         if (window.SFX) SFX.pluck(520);
       }
@@ -197,6 +209,9 @@
     capN.style.opacity = '0'; capN.style.transform = 'translateY(12px)';
     if (lO) lO.style.opacity = '1';
     if (lN) lN.style.opacity = '0';
+    /* 进入今昔步：章节标题先完全显现（此时画面全是当年） */
+    var head2 = sec.querySelector('.scene-head');
+    if (head2) { head2.style.transition = 'none'; head2.style.opacity = '1'; head2.style.transform = 'none'; }
     tab2.classList.remove('hide');
     void img2.offsetWidth;
     setTimeout(function () {
